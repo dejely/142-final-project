@@ -1,0 +1,14 @@
+[project]
+name = "astra-web"
+version = "0.1.0"
+description = "Code plagiarism detector"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "astra-core",
+    "fastapi[standard]>=0.136.1",
+    "uvicorn>=0.47.0",
+]
+
+[tool.uv.sources]
+astra-core = { workspace = true }
