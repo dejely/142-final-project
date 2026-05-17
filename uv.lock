@@ -1,0 +1,31 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[manifest]
+members = [
+    "astra",
+    "astra-cli",
+    "astra-core",
+    "astra-web",
+]
+
+[[package]]
+name = "astra"
+version = "0.1.0"
+source = { virtual = "." }
+
+[[package]]
+name = "astra-cli"
+version = "0.1.0"
+source = { virtual = "packages/astra-cli" }
+
+[[package]]
+name = "astra-core"
+version = "0.1.0"
+source = { editable = "packages/astra-core" }
+
+[[package]]
+name = "astra-web"
+version = "0.1.0"
+source = { virtual = "packages/astra-web" }
