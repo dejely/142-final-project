@@ -68,7 +68,7 @@ function CodePane({
   file: UploadedCodeFile;
   highlightedLines: number[];
 }) {
-  const lines = ensureDisplayLines(file).slice(0, 24);
+  const lines = ensureDisplayLines(file);
   const highlightSet = new Set(highlightedLines);
 
   return (

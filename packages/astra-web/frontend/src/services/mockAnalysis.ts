@@ -126,12 +126,15 @@ function deterministicScore(
   fileA: UploadedCodeFile,
   fileB: UploadedCodeFile
 ): number {
+  const normalizedContentA = stripComments(fileA.content);
+  const normalizedContentB = stripComments(fileB.content);
+  const sharedWords = sharedWordCount(normalizedContentA, normalizedContentB);
   const key = [
     fileA.name,
     fileB.name,
-    fileA.content.length,
-    fileB.content.length,
-    sharedWordCount(fileA.content, fileB.content)
+    normalizedContentA.length,
+    normalizedContentB.length,
+    sharedWords
   ].join("|");
 
   let hash = 0;
@@ -141,10 +144,19 @@ function deterministicScore(
 
   const structuralLift =
     fileA.extension === fileB.extension ? 0.14 : fileA.type === fileB.type ? 0.07 : 0;
-  const sharedLift = Math.min(sharedWordCount(fileA.content, fileB.content) / 140, 0.18);
+  const sharedLift = Math.min(sharedWords / 140, 0.18);
   const base = 0.34 + (hash % 42) / 100;
 
   return Math.min(0.97, Number((base + structuralLift + sharedLift).toFixed(2)));
+}
+
+function stripComments(source: string): string {
+  return source
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/(^|\s)(#|\/\/).*$/, "$1"))
+    .join("\n");
 }
 
 function sharedWordCount(left: string, right: string): number {

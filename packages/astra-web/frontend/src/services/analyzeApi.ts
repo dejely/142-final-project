@@ -38,6 +38,11 @@ interface BackendSimilarityScore {
 interface BackendAlignment {
   left_chunk_index: number;
   right_chunk_index: number;
+  similarity: number;
+  left_start_line?: number;
+  left_end_line?: number;
+  right_start_line?: number;
+  right_end_line?: number;
 }
 
 const API_BASE = (import.meta.env.VITE_ASTRA_API_BASE ?? "/api").replace(
@@ -138,13 +143,29 @@ function highlightsFromEvidence(
   fileB: UploadedCodeFile
 ): { left: number[]; right: number[] } {
   if (evidence && evidence.length > 0) {
+    const relevantEvidence = evidence
+      .filter((item) => item.similarity >= 0.55)
+      .slice(0, 6);
+
     return {
-      left: evidence
-        .slice(0, 6)
-        .map((item) => limitLine(item.left_chunk_index + 1, fileA)),
-      right: evidence
-        .slice(0, 6)
-        .map((item) => limitLine(item.right_chunk_index + 1, fileB))
+      left: uniqueLines(
+        relevantEvidence.flatMap((item) =>
+          lineRange(
+            item.left_start_line ?? item.left_chunk_index + 1,
+            item.left_end_line ?? item.left_chunk_index + 1,
+            fileA
+          )
+        )
+      ),
+      right: uniqueLines(
+        relevantEvidence.flatMap((item) =>
+          lineRange(
+            item.right_start_line ?? item.right_chunk_index + 1,
+            item.right_end_line ?? item.right_chunk_index + 1,
+            fileB
+          )
+        )
+      )
     };
   }
 
@@ -158,4 +179,19 @@ function limitLine(line: number, file: UploadedCodeFile): number {
   const lineCount = Math.max(file.content.split(/\r?\n/).length, 1);
 
   return Math.min(Math.max(line, 1), lineCount);
+}
+
+function lineRange(
+  startLine: number,
+  endLine: number,
+  file: UploadedCodeFile
+): number[] {
+  const start = limitLine(startLine, file);
+  const end = limitLine(Math.max(startLine, endLine), file);
+
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+function uniqueLines(lines: number[]): number[] {
+  return [...new Set(lines)].sort((left, right) => left - right);
 }
