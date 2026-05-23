@@ -28,7 +28,9 @@ def chunk_source_code(unit: CodeUnit) -> List[ASTChunk]:
                 kind=type(statement).__name__,
                 tokens=tuple(tokenize_node(statement)),
                 start_line=getattr(statement, "lineno", 1),
-                end_line=getattr(statement, "end_lineno", getattr(statement, "lineno", 1)),
+                end_line=getattr(
+                    statement, "end_lineno", getattr(statement, "lineno", 1)
+                ),
             )
         )
 
