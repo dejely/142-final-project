@@ -19,6 +19,8 @@ class ASTChunk:
     index: int
     kind: str
     tokens: Tuple[str, ...]
+    start_line: int = 1
+    end_line: int = 1
 
     def __repr__(self) -> str:
         return f"ASTChunk(index={self.index}, kind={self.kind!r}, tokens={len(self.tokens)})"
@@ -39,6 +41,10 @@ class ChunkAlignment:
     right_kind: str
     left_tokens: Tuple[str, ...]
     right_tokens: Tuple[str, ...]
+    left_start_line: int = 1
+    left_end_line: int = 1
+    right_start_line: int = 1
+    right_end_line: int = 1
 
     def __repr__(self) -> str:
         return (
