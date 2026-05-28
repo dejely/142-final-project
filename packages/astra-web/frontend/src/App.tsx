@@ -1,45 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, GraduationCap } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AnalysisSettings } from "./components/AnalysisSettings";
 import { FileUpload } from "./components/FileUpload";
 import { ResultsSummary } from "./components/ResultsSummary";
 import { ResultsTable } from "./components/ResultsTable";
-import { Sidebar } from "./components/Sidebar";
 import { SimilarityDetailView } from "./components/SimilarityDetailView";
+
 import {
   getExtension,
   isSupportedFile
-} from "./services/mockAnalysis";
+} from "./services/analysisUtils";
 import { analyzeCodeSimilarity } from "./services/analyzeApi";
 import {
-  AnalysisPayload,
-  ComparisonMode,
   SimilarityResult,
   UploadedCodeFile
 } from "./types";
 
-type SidebarItem =
-  | "dashboard"
-  | "new-analysis"
-  | "reports"
-  | "settings"
-  | "project-info";
-
-const sectionIds: Record<SidebarItem, string> = {
-  dashboard: "dashboard-section",
-  "new-analysis": "new-analysis-section",
-  reports: "reports-section",
-  settings: "settings-section",
-  "project-info": "project-info-section"
-};
+const FILE_STORAGE_KEY = "astra.uploadedFiles";
 
 function App() {
-  const [activeItem, setActiveItem] = useState<SidebarItem>("dashboard");
-  const [files, setFiles] = useState<UploadedCodeFile[]>([]);
+  const [files, setFiles] = useState<UploadedCodeFile[]>(loadStoredFiles);
   const [threshold, setThreshold] = useState(0.8);
-  const [comparisonMode, setComparisonMode] =
-    useState<ComparisonMode>("all_pairs");
-  const [referenceFileId, setReferenceFileId] = useState("");
   const [results, setResults] = useState<SimilarityResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<SimilarityResult | null>(
     null
@@ -47,24 +27,15 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   const [notice, setNotice] = useState("Only Python .py files are supported.");
-  const [lastPayload, setLastPayload] = useState<AnalysisPayload | null>(null);
 
   useEffect(() => {
-    if (files.length === 0) {
-      setReferenceFileId("");
-      return;
+    try {
+      localStorage.setItem(FILE_STORAGE_KEY, JSON.stringify(files));
+    } catch (error) {
+      console.error("Unable to save uploaded files locally.", error);
+      setNotice("Files are loaded, but could not be saved in local storage.");
     }
-
-    const referenceStillExists = files.some((file) => file.id === referenceFileId);
-    if (!referenceStillExists) {
-      setReferenceFileId(files[0].id);
-    }
-  }, [files, referenceFileId]);
-
-  const flaggedCount = useMemo(
-    () => results.filter((result) => result.score >= threshold).length,
-    [results, threshold]
-  );
+  }, [files]);
 
   async function handleFilesAdded(incomingFiles: File[]) {
     const supportedFiles = incomingFiles.filter((file) =>
@@ -124,62 +95,23 @@ function App() {
     setIsAnalyzing(true);
     setSelectedResult(null);
 
-    const analysis = await analyzeCodeSimilarity({
-      files,
-      threshold,
-      comparisonMode,
-      referenceFileId
-    });
+    try {
+      const analysis = await analyzeCodeSimilarity({
+        files,
+        threshold
+      });
 
-    setLastPayload(analysis.payload);
-    setResults(analysis.results);
-    setNotice(analysis.message);
-    setIsAnalyzing(false);
-    setActiveItem("reports");
-    window.setTimeout(() => scrollToSection("reports"), 0);
-  }
-
-  function handleSidebarSelect(item: SidebarItem) {
-    setActiveItem(item);
-    scrollToSection(item);
+      setResults(analysis.results);
+      setNotice(analysis.message);
+      window.setTimeout(() => scrollToReports(), 0);
+    } finally {
+      setIsAnalyzing(false);
+    }
   }
 
   return (
     <div className="app-shell">
-      <Sidebar
-        activeItem={activeItem}
-        onSelect={handleSidebarSelect}
-        reportsCount={results.length}
-      />
-
       <main className="app-main">
-        <section className="hero-panel" id="dashboard-section">
-          <div className="hero-copy">
-            <div className="hero-icon" aria-hidden="true">
-              <GraduationCap size={28} />
-            </div>
-            <div>
-              <p className="eyebrow">Academic code review</p>
-              <h1>Astra Similarity Checker</h1>
-              <p>
-                Upload Python files and check structural similarity across
-                student submissions.
-              </p>
-            </div>
-          </div>
-          <div className="hero-status">
-            <div>
-              <span>Ready for review</span>
-              <strong>{flaggedCount} flagged</strong>
-            </div>
-            {flaggedCount > 0 ? (
-              <AlertCircle size={24} />
-            ) : (
-              <CheckCircle2 size={24} />
-            )}
-          </div>
-        </section>
-
         <div className="workspace-grid">
           <FileUpload
             files={files}
@@ -191,13 +123,9 @@ function App() {
 
           <AnalysisSettings
             files={files}
-            comparisonMode={comparisonMode}
             threshold={threshold}
-            referenceFileId={referenceFileId}
             isAnalyzing={isAnalyzing}
-            onModeChange={setComparisonMode}
             onThresholdChange={setThreshold}
-            onReferenceFileChange={setReferenceFileId}
             onStart={handleStartAnalysis}
           />
         </div>
@@ -225,9 +153,43 @@ function App() {
   );
 }
 
-function scrollToSection(item: SidebarItem) {
+function loadStoredFiles(): UploadedCodeFile[] {
+  try {
+    const storedFiles = localStorage.getItem(FILE_STORAGE_KEY);
+    if (!storedFiles) {
+      return [];
+    }
+
+    const parsedFiles: unknown = JSON.parse(storedFiles);
+    return Array.isArray(parsedFiles)
+      ? parsedFiles.filter(isUploadedCodeFile)
+      : [];
+  } catch (error) {
+    console.error("Unable to load uploaded files from local storage.", error);
+    return [];
+  }
+}
+
+function isUploadedCodeFile(file: unknown): file is UploadedCodeFile {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+
+  const candidate = file as Partial<UploadedCodeFile>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    typeof candidate.extension === "string" &&
+    typeof candidate.type === "string" &&
+    typeof candidate.size === "number" &&
+    typeof candidate.content === "string" &&
+    typeof candidate.lastModified === "number"
+  );
+}
+
+function scrollToReports() {
   document
-    .getElementById(sectionIds[item])
+    .getElementById("reports-section")
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 

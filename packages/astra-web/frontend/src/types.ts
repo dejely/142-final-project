@@ -1,5 +1,3 @@
-export type ComparisonMode = "all_pairs" | "reference_file";
-
 export type SimilarityStatus = "low" | "medium" | "high";
 
 export interface UploadedCodeFile {
@@ -18,8 +16,7 @@ export interface AnalysisPayload {
     content: string;
   }>;
   threshold: number;
-  comparisonMode: ComparisonMode;
-  referenceFileId?: string;
+  comparisonMode: "all_pairs";
 }
 
 export interface SimilarityResult {
