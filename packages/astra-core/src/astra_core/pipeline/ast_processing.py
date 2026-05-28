@@ -1,3 +1,5 @@
+"""Parse Python source and normalize AST nodes into comparison chunks."""
+
 from __future__ import annotations
 
 import ast
@@ -7,10 +9,12 @@ from ..domain.models import ASTChunk, CodeUnit
 
 
 def chunk_source_code(unit: CodeUnit) -> List[ASTChunk]:
+    """Split a parsed module into comparable top-level AST chunks."""
     tree = parse_source(unit)
     chunks: List[ASTChunk] = []
 
     if not isinstance(tree, ast.Module):
+        # Non-module parses are still represented as a single chunk for scoring.
         return [
             ASTChunk(
                 index=0, kind=type(tree).__name__, tokens=tuple(tokenize_node(tree))
@@ -38,6 +42,7 @@ def chunk_source_code(unit: CodeUnit) -> List[ASTChunk]:
 
 
 def parse_source(unit: CodeUnit) -> ast.AST:
+    """Parse a code unit and raise a readable error when parsing fails."""
     try:
         return ast.parse(unit.content, filename=unit.id)
     except SyntaxError as exc:
@@ -47,22 +52,29 @@ def parse_source(unit: CodeUnit) -> ast.AST:
 
 
 def tokenize_node(node: ast.AST) -> List[str]:
+    """Walk an AST node and emit a normalized token stream."""
     tokens: List[str] = []
 
     def visit(current: ast.AST) -> None:
+        # Preserve structure while normalizing identifiers and literals.
         tokens.append(type(current).__name__)
 
         if isinstance(current, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            # Names of declarations should not dominate the similarity result.
             tokens.append("IDENT")
         elif isinstance(current, ast.Name):
             tokens.append("IDENT")
         elif isinstance(current, ast.arg):
+            # Function arguments are treated as placeholders, not exact names.
             tokens.append("ARG")
         elif isinstance(current, ast.Attribute):
+            # Attribute access is normalized to preserve the shape of the expression.
             tokens.append("ATTR")
         elif isinstance(current, ast.alias):
+            # Imports are compared by structure rather than exact alias text.
             tokens.append("ALIAS")
         elif isinstance(current, ast.Constant):
+            # Literal values are collapsed to broad kinds so tiny value changes matter less.
             tokens.append(_normalize_constant(current.value))
 
         for field_name, value in ast.iter_fields(current):
@@ -85,6 +97,7 @@ def tokenize_node(node: ast.AST) -> List[str]:
 
 
 def _normalize_primitive(field_name: str, value: object) -> str | None:
+    """Map primitive field values to coarse comparison tokens."""
     if value is None:
         return None
 
@@ -110,6 +123,7 @@ def _normalize_primitive(field_name: str, value: object) -> str | None:
 
 
 def _normalize_constant(value: object) -> str:
+    """Normalize constant literals so only their broad type matters."""
     if value is None:
         return "CONST_NONE"
 
