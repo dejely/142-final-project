@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from "react";
 import { CheckCircle2, Columns2, X } from "lucide-react";
 import { SimilarityResult, UploadedCodeFile } from "../types";
 import { StatusBadge } from "./ResultsTable";
@@ -11,8 +12,18 @@ export function SimilarityDetailView({
   result,
   onClose
 }: SimilarityDetailViewProps) {
+  const detailRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [result.id]);
+
   return (
-    <section className="panel detail-panel" aria-label="Similarity details">
+    <section
+      ref={detailRef}
+      className="panel detail-panel"
+      aria-label="Similarity details"
+    >
       <div className="detail-header">
         <div>
           <p className="eyebrow">Similarity detail</p>
@@ -32,15 +43,6 @@ export function SimilarityDetailView({
         >
           <X size={18} />
         </button>
-      </div>
-
-      <div className="finding-row" aria-label="Similarity findings">
-        {result.findings.map((finding) => (
-          <span key={finding}>
-            <CheckCircle2 size={16} />
-            {finding}
-          </span>
-        ))}
       </div>
 
       <div className="code-split">
@@ -69,7 +71,33 @@ function CodePane({
   highlightedLines: number[];
 }) {
   const lines = ensureDisplayLines(file);
-  const highlightSet = new Set(highlightedLines);
+  const preRef = useRef<HTMLPreElement | null>(null);
+  const sortedHighlights = useMemo(
+    () => [...new Set(highlightedLines)].sort((left, right) => left - right),
+    [highlightedLines]
+  );
+  const highlightSet = new Set(sortedHighlights);
+
+  useEffect(() => {
+    const firstHighlightedLine = sortedHighlights[0];
+    if (!firstHighlightedLine || !preRef.current) {
+      preRef.current?.scrollTo({ top: 0 });
+      return;
+    }
+
+    const target = preRef.current.querySelector<HTMLElement>(
+      `[data-line="${firstHighlightedLine}"]`
+    );
+
+    if (!target) {
+      return;
+    }
+
+    preRef.current.scrollTo({
+      top: Math.max(target.offsetTop - preRef.current.clientHeight * 0.28, 0),
+      behavior: "smooth"
+    });
+  }, [file.id, sortedHighlights]);
 
   return (
     <article className="code-pane">
@@ -77,7 +105,7 @@ function CodePane({
         <strong>{title}</strong>
         <span>{file.extension}</span>
       </header>
-      <pre>
+      <pre ref={preRef}>
         {lines.map((line, index) => {
           const lineNumber = index + 1;
           const isHighlighted = highlightSet.has(lineNumber);
@@ -85,6 +113,7 @@ function CodePane({
           return (
             <code
               className={isHighlighted ? "is-highlighted" : ""}
+              data-line={lineNumber}
               key={`${file.id}-${lineNumber}`}
             >
               <span className="line-number">{lineNumber}</span>

@@ -1,99 +1,35 @@
-import { Play, SlidersHorizontal } from "lucide-react";
-import { ComparisonMode, UploadedCodeFile } from "../types";
+import { Play } from "lucide-react";
+import { UploadedCodeFile } from "../types";
 
 interface AnalysisSettingsProps {
   files: UploadedCodeFile[];
-  comparisonMode: ComparisonMode;
   threshold: number;
-  referenceFileId: string;
   isAnalyzing: boolean;
-  onModeChange: (mode: ComparisonMode) => void;
   onThresholdChange: (threshold: number) => void;
-  onReferenceFileChange: (fileId: string) => void;
   onStart: () => void;
 }
 
 export function AnalysisSettings({
   files,
-  comparisonMode,
   threshold,
-  referenceFileId,
   isAnalyzing,
-  onModeChange,
   onThresholdChange,
-  onReferenceFileChange,
   onStart
 }: AnalysisSettingsProps) {
-  const canStart =
-    files.length >= 2 &&
-    (!isAnalyzing || files.length >= 2) &&
-    (comparisonMode === "all_pairs" || Boolean(referenceFileId));
+  const canStart = files.length >= 2 && !isAnalyzing;
 
   return (
     <section className="panel settings-panel" id="settings-section">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Analysis setup</p>
-          <h2>Comparison settings</h2>
+          <h2>Run check</h2>
+          <p>All uploaded files are compared against each other.</p>
         </div>
-        <SlidersHorizontal size={21} />
       </div>
-
-      <div className="mode-grid" role="radiogroup" aria-label="Comparison mode">
-        <button
-          type="button"
-          className={`mode-card ${
-            comparisonMode === "all_pairs" ? "is-selected" : ""
-          }`}
-          onClick={() => onModeChange("all_pairs")}
-          role="radio"
-          aria-checked={comparisonMode === "all_pairs"}
-        >
-          <span>All-Pairs Comparison</span>
-          <p>Compare every uploaded file against every other file.</p>
-          <small>A vs B, A vs C, B vs C</small>
-        </button>
-
-        <button
-          type="button"
-          className={`mode-card ${
-            comparisonMode === "reference_file" ? "is-selected" : ""
-          }`}
-          onClick={() => onModeChange("reference_file")}
-          role="radio"
-          aria-checked={comparisonMode === "reference_file"}
-        >
-          <span>Reference File Comparison</span>
-          <p>Choose one main file and compare all other files against it.</p>
-          <small>Main file vs Submission 1, Main file vs Submission 2</small>
-        </button>
-      </div>
-
-      {comparisonMode === "reference_file" ? (
-        <label className="field-label" htmlFor="reference-file">
-          Reference file
-          <select
-            id="reference-file"
-            value={referenceFileId}
-            onChange={(event) => onReferenceFileChange(event.target.value)}
-            disabled={files.length === 0}
-          >
-            {files.length === 0 ? (
-              <option value="">Upload files first</option>
-            ) : (
-              files.map((file) => (
-                <option key={file.id} value={file.id}>
-                  {file.name}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
-      ) : null}
 
       <div className="threshold-block">
         <div className="threshold-header">
-          <label htmlFor="threshold-range">Similarity Threshold</label>
+          <label htmlFor="threshold-range">Flag threshold</label>
           <input
             id="threshold-number"
             className="threshold-number"
@@ -118,7 +54,6 @@ export function AnalysisSettings({
           value={threshold}
           onChange={(event) => onThresholdChange(Number(event.target.value))}
         />
-        <p>Pairs above this score will be flagged as potentially similar.</p>
       </div>
 
       <button
@@ -128,7 +63,7 @@ export function AnalysisSettings({
         onClick={onStart}
       >
         <Play size={18} fill="currentColor" />
-        {isAnalyzing ? "Running analysis..." : "Start Similarity Check"}
+        {isAnalyzing ? "Checking..." : "Compare all pairs"}
       </button>
     </section>
   );

@@ -1,6 +1,6 @@
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
 import { FileCode2, Trash2, UploadCloud } from "lucide-react";
-import { SUPPORTED_EXTENSIONS } from "../services/mockAnalysis";
+import { SUPPORTED_EXTENSIONS } from "../services/analysisUtils";
 import { UploadedCodeFile } from "../types";
 
 interface FileUploadProps {
@@ -38,8 +38,8 @@ export function FileUpload({
     <section className="panel upload-panel" id="new-analysis-section">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">New analysis</p>
-          <h2>Upload Python files</h2>
+          <h2>Files</h2>
+          <p>Add Python submissions to compare.</p>
         </div>
         <span className="soft-badge">{files.length} files</span>
       </div>
@@ -73,8 +73,8 @@ export function FileUpload({
         <div className="dropzone-icon">
           <UploadCloud size={28} />
         </div>
-        <h3>Drag and drop Python source files here</h3>
-        <p>or browse from your device</p>
+        <h3>Drop Python files here</h3>
+        <p>or browse</p>
         <div className="format-row" aria-label="Supported formats">
           {SUPPORTED_EXTENSIONS.map((extension) => (
             <span key={extension}>{extension}</span>
