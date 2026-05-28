@@ -1,7 +1,9 @@
-import { buildAnalysisPayload, getStatus } from "./mockAnalysis";
+import {
+  buildAnalysisPayload,
+  getStatus
+} from "./analysisUtils";
 import {
   AnalysisPayload,
-  ComparisonMode,
   SimilarityResult,
   UploadedCodeFile
 } from "../types";
@@ -9,8 +11,6 @@ import {
 interface AnalyzeInput {
   files: UploadedCodeFile[];
   threshold: number;
-  comparisonMode: ComparisonMode;
-  referenceFileId?: string;
 }
 
 interface AnalyzeOutput {
@@ -97,12 +97,6 @@ function mapBackendReport(
   const filesById = new Map(input.files.map((file) => [file.id, file]));
 
   return report.scores
-    .filter((score) =>
-      input.comparisonMode === "reference_file" && input.referenceFileId
-        ? score.unit_a === input.referenceFileId ||
-          score.unit_b === input.referenceFileId
-        : true
-    )
     .map((score) => {
       const fileA = filesById.get(score.unit_a);
       const fileB = filesById.get(score.unit_b);
@@ -165,10 +159,7 @@ function highlightsFromEvidence(
     };
   }
 
-  return {
-    left: [2, 3, 4].map((line) => limitLine(line, fileA)),
-    right: [2, 3, 4].map((line) => limitLine(line, fileB))
-  };
+  return { left: [], right: [] };
 }
 
 function limitLine(line: number, file: UploadedCodeFile): number {
