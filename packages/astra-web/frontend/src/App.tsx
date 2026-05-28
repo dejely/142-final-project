@@ -6,7 +6,6 @@ import { ResultsSummary } from "./components/ResultsSummary";
 import { ResultsTable } from "./components/ResultsTable";
 import { Sidebar } from "./components/Sidebar";
 import { SimilarityDetailView } from "./components/SimilarityDetailView";
-import { ProjectInfo } from "./components/ProjectInfo";
 import {
   getExtension,
   isSupportedFile
@@ -221,22 +220,6 @@ function App() {
           threshold={threshold}
           onViewDetails={setSelectedResult}
         />
-
-        <section className="integration-strip" aria-label="Prepared API payload">
-          <div>
-            <p className="eyebrow">Backend handoff</p>
-            <strong>
-              {lastPayload
-                ? `${lastPayload.units.length} units prepared for /analyze`
-                : "No payload prepared yet"}
-            </strong>
-          </div>
-          <span>
-            Mode: {comparisonMode === "all_pairs" ? "all_pairs" : "reference_file"}
-          </span>
-        </section>
-
-        <ProjectInfo />
       </main>
     </div>
   );
