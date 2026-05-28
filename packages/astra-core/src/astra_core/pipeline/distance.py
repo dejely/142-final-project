@@ -1,69 +1,118 @@
-"""Damerau-Levenshtein distance for token sequence comparison."""
-
 from typing import Sequence
 
 
-def damerau_levenshtein_distance(left: Sequence[str], right: Sequence[str]) -> int:
-    """Return the edit distance with adjacent transpositions counted as one."""
-    if left == right:
+def damerau_levenshtein_distance(a: Sequence[str], b: Sequence[str]) -> int:
+    """
+    Compute the Damerau-Levenshtein distance between two sequences.
+
+    This dynamic programming formulation supports:
+    - insertion
+    - deletion
+    - substitution
+    - adjacent transposition (swap of neighboring elements)
+
+    Interpretation:
+    dp[i][j] represents the minimum number of edits required to transform
+    the prefix a[:i] into the prefix b[:j].
+    """
+    # If both sequences are identical, no edits are needed.
+    if a == b:
         return 0
 
-    left_length = len(left)
-    right_length = len(right)
+    n, m = len(a), len(b)
 
-    if left_length == 0:
-        return right_length
+    # dp table where each entry stores optimal edit distance for prefixes
+    dp = [[0] * (m + 1) for _ in range(n + 1)]
 
-    if right_length == 0:
-        return left_length
+    # Base case initialization
 
-    max_distance = left_length + right_length
-    distance_matrix = [[0] * (right_length + 2) for _ in range(left_length + 2)]
-    distance_matrix[0][0] = max_distance
+    # If a[:0] (empty string) -> b[:j],
+    # the only option is inserting all j elements from b.
+    # So cost grows linearly with j.
+    for j in range(m + 1):
+        dp[0][j] = j
 
-    # The outer border seeds the dynamic-programming table with edit costs.
-    for i in range(left_length + 1):
-        distance_matrix[i + 1][0] = max_distance
-        distance_matrix[i + 1][1] = i
+    # If a[:i] -> empty string b[:0],
+    # the only option is deleting all i elements from a.
+    # So cost grows linearly with i.
+    for i in range(n + 1):
+        dp[i][0] = i
 
-    for j in range(right_length + 1):
-        distance_matrix[0][j + 1] = max_distance
-        distance_matrix[1][j + 1] = j
+    # Fill DP table bottom-up
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            # COST: do current tokens match?
+            # If they match, no substitution is needed (cost = 0).
+            # If they differ, we must account for 1 substitution cost.
+            cost = 0 if a[i - 1] == b[j - 1] else 1
 
-    # Track the last row where each token from the left side matched.
-    last_seen: dict[str, int] = {}
+            # DELETION
+            #
+            # We assume the optimal solution ends by deleting a[i-1].
+            #
+            # Meaning:
+            # - We already optimally transformed a[:i-1] -> b[:j]
+            # - Then we delete a[i-1] to reach a[:i]
+            #
+            # Why dp[i-1][j]?
+            # Because we remove one character from A without consuming B.
+            delete = dp[i - 1][j] + 1
 
-    for i in range(1, left_length + 1):
-        last_match_column = 0
+            # INSERTION
+            #
+            # We assume the optimal solution ends by inserting b[j-1].
+            #
+            # Meaning:
+            # - We already transformed a[:i] -> b[:j-1]
+            # - Then we insert b[j-1] at the end
+            #
+            # Why dp[i][j-1]?
+            # Because we consume one extra character from B.
+            insert = dp[i][j - 1] + 1
 
-        for j in range(1, right_length + 1):
-            left_token = left[i - 1]
-            right_token = right[j - 1]
-            previous_match_row = last_seen.get(right_token, 0)
-            previous_match_column = last_match_column
+            # SUBSTITUTION (or MATCH)
+            #
+            # We align last characters a[i-1] and b[j-1].
+            #
+            # Meaning:
+            # - We already solved a[:i-1] -> b[:j-1]
+            # - Then we fix the last character:
+            #   - cost = 0 if equal (no edit needed)
+            #   - cost = 1 if different (substitution)
+            #
+            # Why dp[i-1][j-1]?
+            # Because both prefixes shrink by one character.
+            substitute = dp[i - 1][j - 1] + cost
 
-            cost = 0 if left_token == right_token else 1
-            if cost == 0:
-                last_match_column = j
+            # Start with best of the three classical edit operations
+            dp[i][j] = min(delete, insert, substitute)
 
-            substitution = distance_matrix[i][j] + cost
-            insertion = distance_matrix[i + 1][j] + 1
-            deletion = distance_matrix[i][j + 1] + 1
-            # This is the transposition case that makes Damerau-Levenshtein differ from Levenshtein.
-            transposition = (
-                distance_matrix[previous_match_row][previous_match_column]
-                + (i - previous_match_row - 1)
-                + 1
-                + (j - previous_match_column - 1)
-            )
+            # TRANSPOSITION (adjacent swap)
+            #
+            # This handles cases where two neighboring elements are swapped:
+            # Example: "ab" -> "ba"
+            #
+            # Condition:
+            # a[i-1] must match b[j-2]
+            # a[i-2] must match b[j-1]
+            #
+            # Why?
+            # We are checking if the last two characters are reversed.
+            #
+            # If true:
+            # - We assume we came from dp[i-2][j-2]
+            # - Because both swapped elements are consumed at once
+            # - Cost is 1 (single swap operation)
+            #
+            # Why dp[i-2][j-2]?
+            # Because a transposition consumes TWO characters from each string.
+            # -------------------------------------------------------
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
+                transpose = dp[i - 2][j - 2] + 1
 
-            distance_matrix[i + 1][j + 1] = min(
-                substitution,
-                insertion,
-                deletion,
-                transposition,
-            )
+                # Compare against existing best solution:
+                # transposition may be cheaper than insertion/deletion/substitution
+                dp[i][j] = min(dp[i][j], transpose)
 
-        last_seen[left[i - 1]] = i
-
-    return distance_matrix[left_length + 1][right_length + 1]
+    # Final answer: full transformation from a[:n] -> b[:m]
+    return dp[n][m]
