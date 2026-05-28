@@ -21,13 +21,20 @@ def chunk_source_code(unit: CodeUnit) -> List[ASTChunk]:
             )
         ]
 
-    for index, statement in enumerate(tree.body):
-        # Each top-level statement becomes one comparison unit.
+    statements = [
+        statement for statement in tree.body if not _is_noop_string_expr(statement)
+    ]
+
+    for index, statement in enumerate(statements):
         chunks.append(
             ASTChunk(
                 index=index,
                 kind=type(statement).__name__,
                 tokens=tuple(tokenize_node(statement)),
+                start_line=getattr(statement, "lineno", 1),
+                end_line=getattr(
+                    statement, "end_lineno", getattr(statement, "lineno", 1)
+                ),
             )
         )
 
@@ -77,7 +84,7 @@ def tokenize_node(node: ast.AST) -> List[str]:
 
             if isinstance(value, list):
                 for item in value:
-                    if isinstance(item, ast.AST):
+                    if isinstance(item, ast.AST) and not _is_noop_string_expr(item):
                         visit(item)
                 continue
 
@@ -133,3 +140,11 @@ def _normalize_constant(value: object) -> str:
         return "CONST_BYTES"
 
     return "CONST_OTHER"
+
+
+def _is_noop_string_expr(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    )
