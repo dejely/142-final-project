@@ -1,5 +1,5 @@
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
-import { FileCode2, Trash2, UploadCloud } from "lucide-react";
+import { Edit3, FileCode2, Trash2, UploadCloud } from "lucide-react";
 import { SUPPORTED_EXTENSIONS } from "../services/analysisUtils";
 import { UploadedCodeFile } from "../types";
 
@@ -8,6 +8,7 @@ interface FileUploadProps {
   isReading: boolean;
   notice: string;
   onFilesAdded: (files: File[]) => void;
+  onEditFile: (fileId: string) => void;
   onRemoveFile: (fileId: string) => void;
 }
 
@@ -16,6 +17,7 @@ export function FileUpload({
   isReading,
   notice,
   onFilesAdded,
+  onEditFile,
   onRemoveFile
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -100,6 +102,14 @@ export function FileUpload({
                 <span>{file.type}</span>
               </div>
               <span className="file-size">{formatBytes(file.size)}</span>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label={`View or edit ${file.name}`}
+                onClick={() => onEditFile(file.id)}
+              >
+                <Edit3 size={16} />
+              </button>
               <button
                 className="icon-button"
                 type="button"

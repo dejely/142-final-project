@@ -24,8 +24,11 @@ function App() {
   const [selectedResult, setSelectedResult] = useState<SimilarityResult | null>(
     null
   );
+  const [editingFileId, setEditingFileId] = useState("");
+  const [editingContent, setEditingContent] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isReadingFiles, setIsReadingFiles] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [notice, setNotice] = useState("Only Python .py files are supported.");
 
   useEffect(() => {
@@ -84,7 +87,78 @@ function App() {
     setFiles((currentFiles) => currentFiles.filter((file) => file.id !== fileId));
     setResults([]);
     setSelectedResult(null);
+    if (editingFileId === fileId) {
+      setEditingFileId("");
+      setEditingContent("");
+    }
     setNotice("File removed. Run a new check to refresh the report.");
+  }
+
+  function handleOpenFileEditor(fileId: string) {
+    const fileToEdit = files.find((file) => file.id === fileId);
+    if (!fileToEdit) {
+      return;
+    }
+
+    setEditingFileId(fileId);
+    setEditingContent(fileToEdit.content);
+  }
+
+  function handleCancelFileEdit() {
+    setEditingFileId("");
+    setEditingContent("");
+  }
+
+  async function handleSaveFileEdit() {
+    if (!editingFileId || isAnalyzing || isSavingEdit) {
+      return;
+    }
+
+    const currentFile = files.find((file) => file.id === editingFileId);
+    if (!currentFile) {
+      handleCancelFileEdit();
+      return;
+    }
+
+    const shouldRerunAnalysis = results.length > 0 && files.length >= 2;
+    const updatedFiles = files.map((file) =>
+      file.id === editingFileId
+        ? {
+            ...file,
+            content: editingContent,
+            size: getUtf8ByteSize(editingContent),
+            lastModified: Date.now()
+          }
+        : file
+    );
+
+    setIsSavingEdit(true);
+    setFiles(updatedFiles);
+    setSelectedResult(null);
+    setEditingFileId("");
+    setEditingContent("");
+
+    if (!shouldRerunAnalysis) {
+      setNotice(`${currentFile.name} saved.`);
+      setIsSavingEdit(false);
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      const analysis = await analyzeCodeSimilarity({
+        files: updatedFiles,
+        threshold
+      });
+
+      setResults(analysis.results);
+      setNotice(`${currentFile.name} saved. ${analysis.message}`);
+      window.setTimeout(() => scrollToReports(), 0);
+    } finally {
+      setIsAnalyzing(false);
+      setIsSavingEdit(false);
+    }
   }
 
   async function handleStartAnalysis() {
@@ -119,6 +193,7 @@ function App() {
             notice={notice}
             onFilesAdded={handleFilesAdded}
             onRemoveFile={handleRemoveFile}
+            onEditFile={handleOpenFileEditor}
           />
 
           <AnalysisSettings
@@ -149,6 +224,86 @@ function App() {
           onViewDetails={setSelectedResult}
         />
       </main>
+
+      {editingFileId ? (
+        <FileEditModal
+          fileName={
+            files.find((file) => file.id === editingFileId)?.name ??
+            "Uploaded file"
+          }
+          content={editingContent}
+          isSaving={isSavingEdit || isAnalyzing}
+          onContentChange={setEditingContent}
+          onCancel={handleCancelFileEdit}
+          onSave={handleSaveFileEdit}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+interface FileEditModalProps {
+  fileName: string;
+  content: string;
+  isSaving: boolean;
+  onContentChange: (content: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}
+
+function FileEditModal({
+  fileName,
+  content,
+  isSaving,
+  onContentChange,
+  onCancel,
+  onSave
+}: FileEditModalProps) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section
+        className="code-edit-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="code-edit-title"
+      >
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">Edit uploaded code</p>
+            <h2 id="code-edit-title">{fileName}</h2>
+          </div>
+        </div>
+
+        <label className="code-editor-label" htmlFor="uploaded-code-editor">
+          Code content
+          <textarea
+            id="uploaded-code-editor"
+            className="code-editor-textarea"
+            value={content}
+            spellCheck={false}
+            onChange={(event) => onContentChange(event.target.value)}
+          />
+        </label>
+
+        <div className="modal-actions">
+          <button
+            className="secondary-action"
+            type="button"
+            disabled={isSaving}
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="primary-action modal-save-action"
+            type="button"
+            disabled={isSaving}
+            onClick={onSave}
+          >
+            {isSaving ? "Updating report..." : "Save"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -204,6 +359,10 @@ function createFileId(file: File): string {
 
 function getReadableFileType(file: File): string {
   return getExtension(file.name) === ".py" ? "Python source" : "Code source";
+}
+
+function getUtf8ByteSize(content: string): number {
+  return new TextEncoder().encode(content).length;
 }
 
 export default App;
