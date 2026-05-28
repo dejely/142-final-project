@@ -17,6 +17,42 @@ Astra is designed for academic use in programming courses to identify potential 
 
 ## Usage
 
+### CLI
+
+Install the workspace dependencies first:
+
+```bash
+uv sync
+```
+
+Run ASTRA against two or more Python files:
+
+```bash
+uv run --package astra-cli astra path/to/file_a.py path/to/file_b.py
+```
+
+Example using files already in this repository:
+
+```bash
+uv run --package astra-cli astra packages/astra-core/tests/test_distance.py packages/astra-core/tests/test_alignment.py
+```
+
+The CLI prints a similarity report with the configured threshold, number of files,
+compared pairs, flagged pairs, and top scores.
+
+Common options:
+
+```bash
+uv run --package astra-cli astra file_a.py file_b.py --threshold 0.9
+uv run --package astra-cli astra file_a.py file_b.py --top 5
+uv run --package astra-cli astra file_a.py file_b.py --json
+```
+
+- `--threshold` sets the minimum score for a pair to be flagged. It must be
+  between `0.0` and `1.0`.
+- `--top` controls how many top pair scores are shown in text output.
+- `--json` prints the full report, including detailed evidence, as JSON.
+
 ### Core API
 
 ```python
@@ -32,7 +68,7 @@ result = analyze_code_similarity([
 
 ### Requirements
 
-- Python 3.10+
+- Python 3.11+
 - uv
 
 ### Install dependencies
